@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phase Planning"
+  short_description: "Plan implementation phases from project docs."
+  default_prompt: "Use Phase Planning to update the task list for the next implementation phase from docs/implementation/01_PLAN.md."
