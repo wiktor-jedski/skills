@@ -22,13 +22,14 @@ one task at a time, to avoid edit conflicts.
 ## Hard rules
 
 1. Run more than one implementation/preparation subagents at the same time if the tasks do not overlap (different files changed, not dependent on each other)
-2. For each eligible task, invoke exactly one fresh subagent session and wait for its result before touching the task list.
+2. For each eligible task, invoke exactly one fresh Coding Subagent session and wait for its result before touching the task list.
 3. The parent agent must not implement the task itself unless subagent invocation is unavailable. If subagent invocation is unavailable, stop and report the missing Task/subagent capability instead of continuing in the parent context.
 4. Do not compact or summarize project context into the parent. Give the subagent only the selected task row, dependency rows needed for context, relevant repository paths it should inspect, and the verification criteria.
-5. Do not mark a task `PREPARED` just because work started. Only update the task list after the subagent reports completion and provides evidence matching the verification criteria.
+5. Do not mark a task `PREPARED` just because work started. Only update the task list after the Coding Subagent reports completion and provides evidence matching the verification criteria.
 6. Update only the `Status` cell for the selected task row from `OPEN` to `PREPARED` or `REJECTED`. Preserve all other columns and formatting as much as possible.
 7. If the subagent reports that the task cannot be completed, leave the row as `OPEN` unless the user explicitly wants failures marked `REJECTED`.
 8. Before ending, report which task IDs were changed and which remain blocked/open.
+9. If any task needs to be amended, use the existing Coding Subagent to implement the fix. Same for reviews - if more than one are necessary, use already existing Review Subagent.
 
 ## Procedure
 
@@ -161,6 +162,9 @@ Review procedure:
    * Confirm the implementation matches the selected task.
    * Confirm it does not silently implement later task IDs.
    * Confirm it does not violate dependency, architecture, runtime, or coverage constraints stated by the task.
+   * Check for code smells.
+   * Ask yourself if this is the simplest implementation possible.
+   * Ask yourself if there are no dependencies that make the implementation worse than possible.
 
 5. Run verification:
 
