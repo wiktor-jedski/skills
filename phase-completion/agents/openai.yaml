@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phase Completion"
+  short_description: "Validate completed phases and generate UAT docs."
+  default_prompt: "Use Phase Completion to validate the current implementation phase, update task statuses, and generate the phase UAT document."
