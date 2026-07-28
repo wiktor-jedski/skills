@@ -12,17 +12,15 @@ from pathlib import Path
 REQUIRED_HEADINGS = [
     "## 1. Task Source",
     "## 2. Pre-Review Gates",
-    "## 3. Review Baseline and Change Surface",
-    "## 4. Acceptance Criteria Checklist",
+    "## 3. Review Surface",
+    "## 4. Acceptance Criteria",
     "## 5. Changed-Symbol Inventory",
     "## 6. Function-Level Audit",
     "## 7. Findings",
     "## 8. Commands Run",
-    "## 9. Files Inspected and Staleness Fingerprints",
-    "## 10. Coverage and Exceptions",
-    "## 11. Negative and Regression Checks",
-    "## 12. Decision",
-    "## 13. Repair Context",
+    "## 9. Coverage and Exceptions",
+    "## 10. Negative and Regression Checks",
+    "## 11. Decision",
 ]
 
 
@@ -77,14 +75,13 @@ def validate(path: Path) -> list[str]:
     if re.search(r"{{[^{}]+}}", text):
         errors.append("unresolved template placeholders remain")
 
-    review_decision = scalar(text, "review_decision")
+    if integer(text, "task_id") is None:
+        errors.append("task_id must be a non-negative integer")
     decision = scalar(text, "decision")
-    if review_decision not in {"PASSED", "REJECTED"}:
-        errors.append("review_decision must be PASSED or REJECTED")
     if decision not in {"PASSED", "REJECTED"}:
         errors.append("decision must be PASSED or REJECTED")
-    if review_decision and decision and review_decision != decision:
-        errors.append("review_decision and decision disagree")
+    if scalar(text, "review_kind") not in {"TASK", "INTEGRATION"}:
+        errors.append("review_kind must be TASK or INTEGRATION")
 
     source_count = integer(text, "inventory_source_count")
     audited_count = integer(text, "audited_symbol_count")
@@ -115,16 +112,10 @@ def validate(path: Path) -> list[str]:
             "code_review_skill_invoked": boolean(text, "code_review_skill_invoked"),
             "pre_review_gates_passed": boolean(text, "pre_review_gates_passed"),
             "inventory_complete": boolean(text, "inventory_complete"),
-            "all_reviewed_files_hashed": boolean(text, "all_reviewed_files_hashed"),
-            "prior_evidence_checked_for_staleness": boolean(
-                text, "prior_evidence_checked_for_staleness"
-            ),
         }
         for key, value in required_true.items():
             if value is not True:
                 errors.append(f"PASSED review requires {key}: true")
-        if scalar(text, "baseline_confidence") not in {"HIGH", "MEDIUM"}:
-            errors.append("PASSED review requires HIGH or MEDIUM baseline confidence")
         if integer(text, "blocking_findings") != 0:
             errors.append("PASSED review cannot have blocking findings")
         if integer(text, "important_findings") != 0:
