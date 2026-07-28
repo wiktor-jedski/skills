@@ -1,43 +1,117 @@
 ---
 name: phase-planning
-description: Plan or refine Mealswapp implementation phases from repository planning docs. Use when Codex is asked to start a phase, plan a phase, expand docs/implementation/01_PLAN.md into docs/implementation/02_TASK_LIST.md, add phase tasks, map work to docs/design static aspects, define dependencies, add verification criteria, or record missing design assumptions in docs/implementation/04_OPEN.md.
+description: Plan implementation phases as actionable, traceable task lists.
+disable-model-invocation: true
 ---
 
 # Phase Planning
 
-## Overview
+Create or refine tasks for one named implementation phase.
 
-Turn the phase-level implementation plan into an actionable, traceable task list. Keep planning changes scoped to `docs/implementation/02_TASK_LIST.md` and `docs/implementation/04_OPEN.md` unless the user explicitly asks for broader edits.
+## Inputs
 
-## Workflow
+The user must name the target phase. Stop if the target phase is missing.
 
-1. Identify the target phase from the user request. If omitted, infer the next phase from the highest fully `PASSED` phase in `docs/implementation/02_TASK_LIST.md` and `docs/implementation/01_PLAN.md`.
-2. Read `docs/implementation/01_PLAN.md`, current `docs/implementation/02_TASK_LIST.md`, and the design files named by the target phase.
-3. If task-list format, status vocabulary, or open-item conventions are unclear, read `references/mealswapp-task-planning.md`.
-4. Generate or update only the target phase rows. Preserve existing task IDs, statuses, retries, and evidence for other phases.
-5. Assign monotonically increasing numeric task IDs. Keep dependencies explicit by task ID and avoid dependency cycles.
-6. Map every task to exactly one relevant architecture or design source and static aspect in the `Static Aspect` column, such as `DESIGN-010: RouteHandler` or `ARCH-005: RepositoryInterfaces`.
-7. Write verification criteria as concrete pass/fail evidence, including commands, API checks, UI checks, data assertions, or document checks as appropriate.
-8. Include expected integration, functional, end-to-end, and acceptance coverage in the phase tasks or verification criteria. Put any accepted coverage exception in `Testing Coverage Exceptions`.
-9. Add assumptions, clarifications, or project-owner actions to `docs/implementation/04_OPEN.md` only when the design docs do not resolve them.
-10. Run `python3 scripts/check.py` when feasible after editing docs. If not feasible, state why.
+Read the applicable `AGENTS.md` files. Get these items from them:
 
-## Task Design
+- Phase plan.
+- Task list.
+- Open-items document.
+- Design and architecture sources.
+- Validation command.
 
-- Prefer implementation slices that a coder can complete and verify independently.
-- Keep tasks ordered by real dependency: data/contracts before services, services before routes, routes before frontend clients, clients before UI workflows, and implementation before UAT documentation.
-- Include test-building tasks near the behavior they verify, not as a single end-of-phase cleanup task.
-- Use `OPEN` for planned tasks. Do not mark tasks `PREPARED` or `PASSED` during planning unless the user supplies current evidence.
-- Keep descriptions phase-prefixed, for example `Phase 02: add versioned API route groups...`.
-- Do not create tasks that only say "review", "polish", or "cleanup"; attach the concrete artifact and verification evidence.
+Stop and report each missing item. Do not guess a path or command.
 
-## Traceability
+Edit only the task list and open-items document unless the user expands the scope.
 
-- Prefer `DESIGN-*` references when a design file defines the implementation surface.
-- Use `ARCH-*` references when the phase plan points to an architecture decision that has no corresponding `DESIGN-*` task surface.
-- Verify referenced docs exist before writing the row.
-- If a needed static aspect is absent from the design docs, record the assumption or clarification in `docs/implementation/04_OPEN.md` instead of inventing a misleading aspect.
+## Task table
 
-## Output
+The task table must have at least these columns:
 
-End with a concise summary of changed files, the target phase planned, and validation run. Mention unresolved open items added to `04_OPEN.md`.
+`ID | Status | Description | Depends On (ID) | Verification Criteria`
+
+Keep all extra columns and the table format. Follow extra-column rules from `AGENTS.md` or the existing table.
+
+Use only these statuses:
+
+- `OPEN`
+- `PREPARED`
+- `PASSED`
+
+Use growing, unique integer IDs. Use comma-separated task IDs for dependencies. Use an empty cell when a task has no dependency.
+
+## Plan the phase
+
+1. Read the named phase in the phase plan.
+2. Extract every exit criterion.
+3. Read the existing tasks for the phase.
+4. Read each design and architecture source named by the phase.
+5. Create small implementation slices in dependency order.
+6. Map every exit criterion to one or more tasks.
+
+Each task must be implementable and verifiable after its dependencies pass.
+
+Put tests close to the behavior that they verify. Do not create one final test-cleanup task.
+
+## Write tasks
+
+For new tasks:
+
+- Set `Status` to `OPEN`.
+- Use the next available ID.
+- State one concrete implementation result.
+- Put all relevant design and architecture references in `Description`.
+- Put observable pass or fail evidence in `Verification Criteria`.
+- Name the relevant tests and commands in `Verification Criteria`.
+- Add explicit dependencies. Keep the dependency graph acyclic.
+
+For existing tasks:
+
+- Preserve every ID and status.
+- Edit only `OPEN` tasks in the target phase.
+- Keep `PREPARED` and `PASSED` tasks unchanged.
+- Keep tasks from other phases unchanged.
+
+Do not repeat the phase name in each description.
+
+## Record open items
+
+Add an open item when:
+
+- A required design or architecture source is missing.
+- The sources do not resolve an implementation fact.
+- A test type is omitted for a justified reason.
+- The project owner must make a decision or take an action.
+
+Use a section for the target phase. Add only headings that contain entries:
+
+- `Assumptions`
+- `Clarifications`
+- `Actions needed`
+- `Testing coverage deviations`
+
+Keep each item concrete and tied to implementation risk. Use the source document as the single source for existing facts.
+
+## Validate
+
+Run the validation command from `AGENTS.md`.
+
+Planning passes only when:
+
+- Every exit criterion maps to at least one task.
+- Every task has valid, acyclic dependencies.
+- Every referenced source exists.
+- Every task has observable verification evidence.
+- Every missing design fact is an open item.
+- The validation command passes.
+
+If a check fails, fix the planning files and run the command again. Report a blocker when the command cannot run.
+
+## Report
+
+Report:
+
+- Target phase.
+- Changed files.
+- Open items added.
+- Validation result.
