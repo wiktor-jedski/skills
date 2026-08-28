@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Phase Orchestrator
 
-Process a phase task graph with dedicated Codex subagents in isolated Git
+Process a phase task graph with dedicated OMP subagents in isolated Git
 worktrees.
 
 ## Inputs
@@ -22,13 +22,12 @@ Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
 
 ## Hard truths
 
-- Codex collaboration tools are the orchestration mechanism. Create agents with
-  `spawn_agent`, continue them with `followup_task`, inspect them with
-  `list_agents`, and wait with `wait_agent`.
-- Use the `developer` agent type for preparation, repair, integration, and
-  publication. Use the `reviewer` agent type for task and integration reviews.
-  These types load the role profiles from `~/.codex/agents/developer.toml` and
-  `~/.codex/agents/reviewer.toml`.
+- OMP subagent tools are the orchestration mechanism. Create agents with
+  `task`, continue them with `hub` `send`, inspect them with `hub` `list` and
+  `jobs`, and wait with `hub` `wait`.
+- Use the `developer` OMP agent definition for preparation, repair,
+  integration, and publication. Use the `reviewer` OMP agent definition for
+  task and integration reviews. Agent definitions supply their roles and tools.
 - Fill the available concurrency with eligible tasks at the start and after
   every wake-up. Parallel work is safe only when every listed dependency of
   every selected task is already `PASSED`; `PREPARED` and in-flight dependencies
@@ -43,32 +42,29 @@ Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
 - The orchestrator owns scheduling and the task list. Subagents own
   implementation, review, and integration work.
 - Waiting is the steady state while work is in flight. Call
-  `wait_agent(timeout_ms=3600000)`, the longest supported wait. A timeout starts
-  another longest-timeout wait; an agent event starts the wake cycle below.
+  `hub` with `op: "wait"` and `timeoutMs: 3600000`. A timeout starts another
+  longest-timeout wait; an agent event starts the wake cycle below.
 
 Repository scripts are task artifacts, not an agent-launch mechanism. Run
-orchestration exclusively through the Codex collaboration tools above.
+orchestration exclusively through the OMP subagent tools above.
 
 ## Role context
 
 Resolve these paths before scheduling:
 
-- Developer profile: `~/.codex/agents/developer.toml`
-- Reviewer profile: `~/.codex/agents/reviewer.toml`
 - Preparation template: `<skill-directory>/PREPARATION.md`
 - Review template: `<skill-directory>/REVIEW.md`
 - Integration template: `<skill-directory>/INTEGRATION.md`
 - State machine: `<skill-directory>/STATE_MACHINE.md`
 
 Read `STATE_MACHINE.md` completely before bootstrap and immediately after every
-`wait_agent` return. Treat it as the single source of truth for cycle inputs,
+`hub` wait return. Treat it as the single source of truth for cycle inputs,
 scheduling decisions, and task transitions.
 
-Immediately before every spawn or follow-up delegation:
+Immediately before every OMP subagent delegation:
 
-1. Read the complete profile for the selected agent type.
-2. Read the complete workflow template for the requested stage.
-3. Give the agent the task ID, absolute workflow-template path, stage, and the
+1. Read the complete workflow template for the requested stage.
+2. Give the agent the task ID, absolute workflow-template path, stage, and the
    bounded result or repair evidence it needs.
 
 Use this base delegation:
@@ -92,9 +88,9 @@ Task | Developer | Reviewer | Stage | Outstanding work | Accepted evidence
 
 The ledger is the authoritative record of current assignments and accepted
 runtime state; `STATE_MACHINE.md` defines the transition rules. Before spawning,
-consult both the ledger and `list_agents`. An assigned idle agent receives
-`followup_task`; an unavailable assigned agent is replaced once and the ledger
-is updated.
+consult both the ledger and `hub` agent/job snapshots. An assigned idle or
+parked agent receives a `hub` `send`; an unavailable assigned agent is replaced
+once and the ledger is updated.
 
 ## Rules
 

@@ -1,7 +1,7 @@
 # Orchestration State Machine
 
 This file is the single source of truth for scheduling and transitions. Read it
-completely before bootstrap and immediately after every `wait_agent` return.
+completely before bootstrap and immediately after every `hub` wait return.
 
 ## Cycle inputs
 
@@ -10,8 +10,8 @@ Take a fresh snapshot of all six inputs before deciding what to do:
 1. Persisted task-table rows and dependency statuses.
 2. Run ledger: assigned agents, task stages, outstanding delegations, and
    accepted evidence.
-3. `list_agents` snapshot: assigned agent availability and newly returned
-   results.
+3. `hub` `list` and `jobs` snapshots: assigned-agent availability and newly
+   returned results.
 4. The event that ended the wait: agent result, question, blocker, timeout, or
    user interruption.
 5. Available concurrency capacity.
@@ -81,12 +81,13 @@ many lowest-ID ready tasks as capacity permits in the same scheduling pass.
 
 ### Terminal check
 
-- If delegations are in flight, call `wait_agent(timeout_ms=3600000)` once.
+- If delegations are in flight, call `hub` with `op: "wait"` and
+  `timeoutMs: 3600000` once.
 - If work exists but only unmet dependencies block it, report each blocked task
   and dependency.
 - If the requested scope is complete, report completion.
-- If that wait times out while work remains in flight, call
-  `wait_agent(timeout_ms=3600000)` again. Timeout is not a terminal state.
+- If that wait times out while work remains in flight, call the same `hub` wait
+  again. Timeout is not a terminal state.
 
 ## Per-task state machine
 
@@ -148,13 +149,13 @@ For every delegation:
 
 ```text
 assigned agent exists in ledger?
-  yes -> agent is available in list_agents?
-           yes -> followup_task(assigned agent)
-           no  -> spawn one replacement with the same agent type; update ledger
-  no  -> spawn once with the required agent type; record in ledger
+  yes -> agent is idle or parked in hub list?
+           yes -> hub send to assigned agent
+           no  -> task spawn one replacement with the same agent type; update ledger
+  no  -> task spawn once with the required agent type; record in ledger
 ```
 
-An idle or completed assigned agent is reusable. A new command or stage is not a
+An idle or parked assigned agent is reusable. A new command or stage is not a
 reason to create a new agent.
 
 ## Safety invariants
