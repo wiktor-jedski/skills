@@ -37,25 +37,30 @@ Commands used to reconstruct the diff:
 {{DIFF_COMMANDS}}
 ```
 
-| Changed file | Purpose | Symbols or units |
-|---|---|---|
-| `{{PATH}}` | {{PURPOSE}} | {{SYMBOLS}} |
+| Changed file | Purpose     | Symbols or units |
+| ------------ | ----------- | ---------------- |
+| `{{PATH}}`   | {{PURPOSE}} | {{SYMBOLS}}      |
 
 ## 4. Acceptance Criteria
 
 Create one row for each testable clause.
 
-| # | Criterion | Evidence | Result |
-|---:|---|---|---|
-| 1 | {{CRITERION}} | {{EVIDENCE}} | {{PASS_OR_FAIL}} |
+|   # | Criterion     | Evidence     | Result           |
+| --: | ------------- | ------------ | ---------------- |
+|   1 | {{CRITERION}} | {{EVIDENCE}} | {{PASS_OR_FAIL}} |
 
 ## 5. Changed-Symbol Inventory
 
-List every added or modified executable unit. This includes functions, methods, behavioral types, SQL statements, routes, scripts, and configuration logic.
+List every added or modified executable unit. This includes functions, methods,
+behavioral types, SQL statements, routes, scripts, and configuration logic.
 
-| # | Symbol or unit | Kind | File and line | Callers or consumers | Tests |
-|---:|---|---|---|---|---|
-| 1 | `{{SYMBOL}}` | {{KIND}} | `{{PATH_AND_LINE}}` | {{CALLERS}} | {{TESTS}} |
+<!-- markdownlint-disable MD013 -->
+
+|   # | Symbol or unit | Kind     | File and line       | Callers or consumers | Tests     |
+| --: | -------------- | -------- | ------------------- | -------------------- | --------- |
+|   1 | `{{SYMBOL}}`   | {{KIND}} | `{{PATH_AND_LINE}}` | {{CALLERS}}          | {{TESTS}} |
+
+<!-- markdownlint-enable MD013 -->
 
 ```yaml
 inventory_source_count: {{COUNT}}
@@ -66,9 +71,13 @@ inventory_complete: {{true_or_false}}
 
 Use `N/A` with a reason when an item does not apply.
 
-| Symbol or unit | Contract and paths | State and resources | Security and bounds | Quality and idioms | Tests and gaps | Result |
-|---|---|---|---|---|---|---|
-| `{{SYMBOL}}` | {{CONTRACT_AND_PATHS}} | {{STATE_AND_RESOURCES}} | {{SECURITY_AND_BOUNDS}} | {{QUALITY_AND_IDIOMS}} | {{TESTS_AND_GAPS}} | {{PASS_OR_FAIL}} |
+<!-- markdownlint-disable MD013 -->
+
+| Symbol or unit | Contract and paths     | State and resources     | Security and bounds     | Quality and idioms     | Tests and gaps     | Result           |
+| -------------- | ---------------------- | ----------------------- | ----------------------- | ---------------------- | ------------------ | ---------------- |
+| `{{SYMBOL}}`   | {{CONTRACT_AND_PATHS}} | {{STATE_AND_RESOURCES}} | {{SECURITY_AND_BOUNDS}} | {{QUALITY_AND_IDIOMS}} | {{TESTS_AND_GAPS}} | {{PASS_OR_FAIL}} |
+
+<!-- markdownlint-enable MD013 -->
 
 ```yaml
 audited_symbol_count: {{COUNT}}
@@ -78,9 +87,13 @@ audited_symbol_count: {{COUNT}}
 
 Record all findings. Use the severity terms from `code-review-skill`.
 
-| Severity | File and line | Symbol | Problem | Required repair or disposition |
-|---|---|---|---|---|
-| {{SEVERITY_OR_NONE}} | `{{PATH_AND_LINE}}` | `{{SYMBOL}}` | {{PROBLEM}} | {{ACTION}} |
+<!-- markdownlint-disable MD013 -->
+
+| Severity             | File and line       | Symbol       | Problem     | Required repair or disposition |
+| -------------------- | ------------------- | ------------ | ----------- | ------------------------------ |
+| {{SEVERITY_OR_NONE}} | `{{PATH_AND_LINE}}` | `{{SYMBOL}}` | {{PROBLEM}} | {{ACTION}}                     |
+
+<!-- markdownlint-enable MD013 -->
 
 ```yaml
 blocking_findings: {{COUNT}}
@@ -90,9 +103,9 @@ optional_findings: {{COUNT}}
 
 ## 8. Commands Run
 
-| Command | Working directory | Exit code | Result |
-|---|---|---:|---|
-| `{{COMMAND}}` | `{{PATH}}` | {{CODE}} | {{PASS_OR_FAIL}} |
+| Command       | Working directory | Exit code | Result           |
+| ------------- | ----------------- | --------: | ---------------- |
+| `{{COMMAND}}` | `{{PATH}}`        |  {{CODE}} | {{PASS_OR_FAIL}} |
 
 Record why a required command did not run.
 
@@ -116,7 +129,8 @@ Finding: {{COVERAGE_FINDING}}
 - [ ] The change adds no unintended generated or temporary file.
 - [ ] Each new public API is necessary and used.
 - [ ] No duplicate helper or obsolete alias remains.
-- [ ] Error, cleanup, timeout, concurrency, and malformed-input paths were checked.
+- [ ] Error, cleanup, timeout, concurrency, and malformed-input paths were
+      checked.
 
 Findings: {{NEGATIVE_CHECK_FINDINGS}}
 

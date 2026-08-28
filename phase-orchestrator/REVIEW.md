@@ -13,19 +13,19 @@ Before review:
 3. Read its dependency rows.
 4. Inspect Git to identify the phase branch, task branch, and review boundary.
 
-For a task review, compare the task branch with its merge base on the phase branch.
+For a task review, compare the task branch with its merge base on the phase
+branch.
 
-For a conflict-resolution review, inspect the staged merge result before the developer completes the merge commit.
-
-For an integration-repair review, compare the temporary integration branch with the remote phase branch.
-
-In both cases, review the full integrated task diff.
+For an integration review, compare the temporary integration branch with the
+remote phase branch. Review the full integrated task diff, including conflict
+resolutions and integration repairs.
 
 Replace the checklist at:
 
 `<main-repository>/.git/reviews/task-<ID>.md`
 
-Use `git rev-parse --git-common-dir` to find the main `.git` directory. Create the `reviews` directory if necessary.
+Use `git rev-parse --git-common-dir` to find the main `.git` directory. Create
+the `reviews` directory if necessary.
 
 ## Review
 
@@ -35,7 +35,8 @@ Use `git rev-parse --git-common-dir` to find the main `.git` directory. Create t
 4. Reconstruct the complete task diff.
 5. Create one checklist item for each verification clause.
 6. Inventory every added or modified executable symbol.
-7. Inspect every item and its important callers, dependencies, tests, and design sources.
+7. Inspect every item and its important callers, dependencies, tests, and design
+   sources.
 8. Run the required checks.
 9. Write the completed checklist.
 10. Run the evidence validator.
@@ -52,7 +53,8 @@ For each non-trivial symbol, inspect:
 - Duplication, reachability, public API need, and language idioms.
 - Existing tests and missing adversarial tests.
 
-Add a concise row for each trivial symbol. Use `N/A` with a reason when an item does not apply.
+Add a concise row for each trivial symbol. Use `N/A` with a reason when an item
+does not apply.
 
 Passing tests do not replace code inspection.
 

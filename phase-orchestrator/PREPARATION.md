@@ -44,6 +44,7 @@ Preparation passes only when:
 
 ## Repair
 
-For a repair delegation, use the latest findings and failed criteria. Change only the required review surface.
+For a repair delegation, use the latest findings and failed criteria. Change
+only the required review surface.
 
 Commit each repair. Return the same evidence as for preparation.

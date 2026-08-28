@@ -23,23 +23,30 @@ If the merge has conflicts:
 1. Invoke `resolving-merge-conflicts`.
 2. Resolve only the conflicts.
 3. Stage the complete resolution.
-4. Do not complete the merge commit.
-5. Return the conflict files, resolutions, and staged diff for review.
+4. Complete the merge commit.
+5. Record the conflict files, resolutions, and resulting diff for review.
 
-After the reviewer approves the staged result, complete the merge commit and run the integration checks.
+Run the required integration checks against the completed temporary integration
+branch.
 
-If the merge has no conflicts, run the required integration checks after Git creates the merge commit.
+If a check or integration review fails, wait for a bounded repair delegation.
+Commit the repair, repeat the checks, and return the result for integration
+review.
 
-If a check or integration review fails, wait for a bounded repair delegation. Commit the repair, repeat the checks, and return the result for integration review.
+Return the completed temporary integration branch for review without pushing it.
 
-When integration passes, push the temporary integration branch to the remote phase branch with a normal fast-forward push. Do not force-push.
+## Publish
+
+For a publication delegation, confirm that the reviewed temporary integration
+branch has not changed since the reviewer approved it. Push it to the remote
+phase branch with a normal fast-forward push. Do not force-push.
 
 Return:
 
 - Task ID.
 - Task branch.
 - Temporary integration branch.
-- Merge and push results.
+- Merge or publication result.
 - Conflict resolutions.
 - Commands and results.
 - Blockers.

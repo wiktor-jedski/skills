@@ -6,11 +6,13 @@ disable-model-invocation: true
 
 # Phase Orchestrator
 
-Process tasks in isolated Git worktrees.
+Process a phase task graph with dedicated Codex subagents in isolated Git
+worktrees.
 
 ## Inputs
 
-Use the task list specified by the applicable `AGENTS.md`. Use another task list only when the user specifies it.
+Use the task list specified by the applicable `AGENTS.md`. Use another task list
+only when the user specifies it.
 
 The table must contain:
 
@@ -18,108 +20,200 @@ The table must contain:
 
 Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
 
-## Agents
+## Hard truths
 
-Resolve the absolute path of this skill directory.
+- Codex collaboration tools are the orchestration mechanism. Create agents with
+  `spawn_agent`, continue them with `followup_task`, inspect them with
+  `list_agents`, and wait with `wait_agent`.
+- Use the `developer` agent type for preparation, repair, integration, and
+  publication. Use the `reviewer` agent type for task and integration reviews.
+  These types load the role profiles from `~/.codex/agents/developer.toml` and
+  `~/.codex/agents/reviewer.toml`.
+- Fill the available concurrency with eligible tasks at the start and after
+  every wake-up. Parallel work is safe only when every listed dependency of
+  every selected task is already `PASSED`; `PREPARED` and in-flight dependencies
+  are unmet.
+- A task follows this complete gate sequence: prepare -> task review ->
+  integrate -> integration review -> publish -> mark `PASSED`. No gate is
+  optional.
+- Keep one developer and one reviewer assigned to a task for its entire
+  lifetime. Continue an assigned agent instead of creating another one. Create a
+  replacement only when the assigned agent is unavailable, and record the
+  replacement in the run ledger.
+- The orchestrator owns scheduling and the task list. Subagents own
+  implementation, review, and integration work.
+- Waiting is the steady state while work is in flight. Call
+  `wait_agent(timeout_ms=3600000)`, the longest supported wait. A timeout starts
+  another longest-timeout wait; an agent event starts the wake cycle below.
 
-For each task, create:
+Repository scripts are task artifacts, not an agent-launch mechanism. Run
+orchestration exclusively through the Codex collaboration tools above.
 
-- One developer.
-- One reviewer.
+## Role context
 
-Put the applicable template into each subagent's context. In the initial delegation, give only the task ID and the absolute template path:
+Resolve these paths before scheduling:
 
-- Developer: `<skill-directory>/PREPARATION.md`
-- Reviewer: `<skill-directory>/REVIEW.md`
-- Integrator: `<skill-directory>/INTEGRATION.md`
+- Developer profile: `~/.codex/agents/developer.toml`
+- Reviewer profile: `~/.codex/agents/reviewer.toml`
+- Preparation template: `<skill-directory>/PREPARATION.md`
+- Review template: `<skill-directory>/REVIEW.md`
+- Integration template: `<skill-directory>/INTEGRATION.md`
+- State machine: `<skill-directory>/STATE_MACHINE.md`
 
-Use this initial instruction:
+Read `STATE_MACHINE.md` completely before bootstrap and immediately after every
+`wait_agent` return. Treat it as the single source of truth for cycle inputs,
+scheduling decisions, and task transitions.
+
+Immediately before every spawn or follow-up delegation:
+
+1. Read the complete profile for the selected agent type.
+2. Read the complete workflow template for the requested stage.
+3. Give the agent the task ID, absolute workflow-template path, stage, and the
+   bounded result or repair evidence it needs.
+
+Use this base delegation:
 
 ```text
-Read <absolute-template-path> completely. Follow it as your role template. Do not start the task before you read it.
+Read <absolute-template-path> completely and follow it as your workflow template.
 Task ID: <ID>
+Stage: <stage>
 ```
 
-The subagent gets all other context from `AGENTS.md`, the task list, and Git. The subagent reads and performs the template instructions. The orchestrator must not perform them.
+The subagent gets repository context from `AGENTS.md`, the task list, and Git.
+The orchestrator does not perform the delegated role.
 
-Reuse the same developer and reviewer for all cycles of that task.
+## Run ledger
 
-Use this communication policy:
+Maintain one row per active task:
 
-- Send one complete delegation when you start an agent.
-- While the agent is active, send no messages to it.
-- Respond only if the agent asks a question or reports a blocker that needs orchestration input.
-- After the agent finishes, a new bounded delegation may request missing evidence or repairs.
-- Stop an agent only when the user cancels the work.
+```text
+Task | Developer | Reviewer | Stage | Outstanding work | Accepted evidence
+```
+
+The ledger is the authoritative record of current assignments and accepted
+runtime state; `STATE_MACHINE.md` defines the transition rules. Before spawning,
+consult both the ledger and `list_agents`. An assigned idle agent receives
+`followup_task`; an unavailable assigned agent is replaced once and the ledger
+is updated.
 
 ## Rules
 
 - Work only in a Git repository.
 - Start only when the phase worktree is clean.
-- The orchestrator owns the task list. Other agents must not edit it.
-- Change only the selected status cell. Preserve all other cells and table format.
-- The orchestrator must not implement, review, or integrate task code.
-- Integrate one task at a time.
+- The orchestrator owns the task list. Other agents do not edit it.
+- Change only the selected status cell. Preserve all other cells and table
+  format.
+- Integrate and publish one task at a time; preparation and task review may run
+  concurrently across eligible tasks.
 - Keep each merged task branch.
-- Remove each task worktree and temporary integration branch after the task passes.
+- Remove each task worktree and temporary integration branch after the task
+  passes.
+- Send one complete delegation for a bounded stage. While that agent is active,
+  wait for its result and respond only to a question or blocker that requires
+  orchestration input.
+- Stop an agent only when the user cancels the work.
 
 ## Process
 
-### 1. Select
+### 1. Bootstrap
 
-Parse task IDs as integers. Treat `-` and an empty dependency cell as no dependencies.
+Parse task IDs as integers. Treat `-` and an empty dependency cell as no
+dependencies.
 
-Stop if an ID is not unique, a dependency is missing, or a status is invalid.
+Stop if an ID is not unique, a dependency is missing, a status is invalid, the
+repository is not clean, or required role/template files cannot be read.
 
-An `OPEN` task is eligible only when all its dependencies are `PASSED`.
+Create the run ledger. An `OPEN` task is eligible only when all its dependencies
+are `PASSED`. A `PREPARED` task resumes at task review unless the ledger or
+durable Git evidence proves a later stage.
 
-Sort eligible tasks by ID. Select the smallest ID first.
+Bootstrap is complete when every task has a valid state and every immediately
+eligible task is identified.
 
-You may process tasks concurrently when the tasks do not depend on each other.
+### 2. Schedule a frontier
 
-If no task is eligible, report each blocked task and its unmet dependencies.
+Follow the scheduler in `STATE_MACHINE.md`. Sort eligible tasks by integer ID.
+Starting with the smallest IDs, dispatch as many preparation delegations in one
+scheduling pass as the available agent capacity supports. Issue the entire
+frontier back-to-back before the first wait. Create each worktree detached at
+the current phase-branch commit in `../worktrees/<project-name>/<task-id>/`; the
+developer creates the task branch there.
 
-### 2. Prepare
+Two tasks may share already-passed ancestors. They are never in the same
+frontier when either task depends transitively on the other.
 
-Create a detached worktree in `../worktrees/<project-name>/<task-id>/` from the current phase-branch commit. The developer creates the task branch in that worktree.
+Do not reserve work for a future dependency level while runnable frontier work
+has capacity. Scheduling is complete when every eligible task is either in
+flight or excluded by the current capacity limit.
 
-When preparation passes, change the task from `OPEN` to `PREPARED`. Commit and push this task-list change on the phase branch.
+### 3. Wake cycle
 
-### 3. Review
+Immediately after every wait returns, reread `STATE_MACHINE.md` completely,
+collect its cycle inputs, and execute every box in its orchestrator cycle in
+order.
 
-Delegate review to the task reviewer.
+The wake cycle is complete only when every received event has a transition, all
+safe capacity is filled, and the orchestrator is waiting or the phase is
+terminal.
 
-If the result is `REJECTED`, keep the task `PREPARED`. Delegate the repairs to the same developer. Then delegate review to the same reviewer.
+### 4. Prepare
 
-Continue until review passes or the user cancels the work.
+The assigned developer implements and commits the task on its task branch.
+Accept preparation only when the developer satisfies every completion criterion
+in `PREPARATION.md` with direct evidence and the task worktree is clean.
 
-### 4. Integrate
+After acceptance, change only that task's status from `OPEN` to `PREPARED`, then
+commit and push the task-list change on the phase branch.
 
-Delegate integration to the same developer. Use initial instruction with integrator template.
+### 5. Task review
 
-If the merge has conflicts, the developer resolves and stages them. Delegate an integration review to the same reviewer before the developer completes the merge commit.
+The assigned reviewer reviews the prepared task using `REVIEW.md`.
 
-If an integration check fails, delegate repair to the developer and a full integration review to the reviewer.
+Accept `PASSED` only with the required checklist, complete inventory,
+verification evidence, and successful evidence validation. On `REJECTED`, keep
+the task `PREPARED`; send the complete findings to the same developer, then send
+the repair result back to the same reviewer.
 
-Continue repair and review with the same agents until integration passes or the user cancels the work.
+Task review is complete only when that reviewer returns an evidence-backed
+`PASSED`.
 
-The developer pushes the integration result to the remote phase branch.
+### 6. Integrate and review
 
-### 5. Complete
+Integrate one approved task at a time. Delegate integration to the same
+developer using `INTEGRATION.md`. The developer creates a temporary integration
+branch from the remote phase branch, merges the approved task branch, resolves
+any conflicts, and runs the integration checks without publishing.
 
-After integration passes:
+Delegate review of the complete integrated result to the same reviewer. On
+rejection, the same developer repairs the temporary integration branch and the
+same reviewer repeats the full integration review.
 
-0. Run `git pull --ff-only`.
-1. Change the task from `PREPARED` to `PASSED`.
-2. Commit and push this task-list change on the phase branch.
-3. Remove the task worktree.
-4. Remove the temporary integration branch.
-5. Keep the merged task branch.
-6. Close the task developer and reviewer.
+Integration is complete only when the reviewer returns an evidence-backed
+`PASSED` for the current temporary integration branch.
 
-Create each later worktree from the updated local phase branch.
+### 7. Publish and complete
 
-For one requested task, stop after this step. For all actionable tasks, return to selection.
+After integration review passes, delegate publication to the same developer. The
+developer pushes the reviewed temporary integration branch to the remote phase
+branch with a normal fast-forward push.
+
+Then the orchestrator:
+
+1. Runs `git pull --ff-only` in the phase worktree.
+2. Changes only the task status from `PREPARED` to `PASSED`.
+3. Commits and pushes the task-list change.
+4. Removes the task worktree and temporary integration branch.
+5. Keeps the merged task branch.
+6. Marks the task terminal in the ledger.
+
+Completion is reached only when the merge is published, the `PASSED` status is
+published, cleanup succeeds, and no gate lacks accepted evidence.
+
+For one requested task, stop after its completion. For all actionable tasks, run
+the wake cycle and schedule the newly eligible frontier.
+
+If no work is in flight and no task is eligible, report every blocked task and
+its unmet dependencies.
 
 Report only:
 
