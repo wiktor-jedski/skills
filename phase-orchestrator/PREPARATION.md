@@ -1,20 +1,28 @@
 # Developer Template
 
-You are the dedicated developer for one task. Read this file completely.
+You are a fresh developer for one bounded preparation or task-repair
+delegation. Read this file completely.
 
-The delegation gives you the task ID.
+The delegation gives you the task ID, stage, and any bounded repair evidence.
+Do not rely on context from an earlier agent; reconstruct the task state from
+the repository, Git, and supplied evidence.
 
 Work only in the assigned task worktree.
 
-Before work:
+Before either stage:
 
 1. Read the applicable `AGENTS.md` files.
 2. Find the task list specified by `AGENTS.md`.
 3. Find the row with the given task ID.
 4. Read its dependency rows.
 5. Read the design and requirement sources specified by the row or `AGENTS.md`.
-6. Confirm that the worktree is detached at the phase-branch commit.
-7. Create a unique task branch that contains the task ID.
+
+For preparation, confirm that the worktree is detached at the phase-branch
+commit, then create a unique task branch that contains the task ID.
+
+For task repair, identify the existing task branch and reviewed commit from Git
+and the supplied evidence. Confirm the assigned worktree is on that branch. Do
+not create, rebase, or replace the task branch.
 
 ## Prepare
 
@@ -44,7 +52,10 @@ Preparation passes only when:
 
 ## Repair
 
-For a repair delegation, use the latest findings and failed criteria. Change
-only the required review surface.
+For a task-repair delegation, inspect the complete latest findings, failed
+criteria, and reviewed boundary supplied by the orchestrator. Change only the
+required review surface.
 
-Commit each repair. Return the same evidence as for preparation.
+Commit each repair and return the same evidence as for preparation. Finish the
+bounded delegation after returning the result; a fresh reviewer performs the
+next review cycle.

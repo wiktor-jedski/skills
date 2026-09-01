@@ -22,12 +22,13 @@ Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
 
 ## Hard truths
 
-- OMP subagent tools are the orchestration mechanism. Create agents with
-  `task`, continue them with `hub` `send`, inspect them with `hub` `list` and
-  `jobs`, and wait with `hub` `wait`.
-- Use the `developer` OMP agent definition for preparation, repair,
-  integration, and publication. Use the `reviewer` OMP agent definition for
-  task and integration reviews. Agent definitions supply their roles and tools.
+- OMP subagent tools are the orchestration mechanism. Spawn agents with `task`,
+  inspect them with `hub` `list` and `jobs`, answer active-delegation questions
+  with `hub` `send`, and wait with `hub` `wait`.
+- Use a fresh `developer` OMP agent for every preparation, repair, integration,
+  and publication delegation. Use a fresh `reviewer` OMP agent for every task
+  review and integration review cycle. Agent definitions supply their roles and
+  tools.
 - Fill the available concurrency with eligible tasks at the start and after
   every wake-up. Parallel work is safe only when every listed dependency of
   every selected task is already `PASSED`; `PREPARED` and in-flight dependencies
@@ -35,10 +36,11 @@ Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
 - A task follows this complete gate sequence: prepare -> task review ->
   integrate -> integration review -> publish -> mark `PASSED`. No gate is
   optional.
-- Keep one developer and one reviewer assigned to a task for its entire
-  lifetime. Continue an assigned agent instead of creating another one. Create a
-  replacement only when the assigned agent is unavailable, and record the
-  replacement in the run ledger.
+- Every bounded stage delegation gets a newly spawned agent with fresh context.
+  Never reuse an agent for another stage, repair attempt, or review cycle, even
+  for the same task and role. Use `hub` `send` only to answer a question or
+  request missing bounded evidence while that original delegation remains
+  active.
 - The orchestrator owns scheduling and the task list. Subagents own
   implementation, review, and integration work.
 - Waiting is the steady state while work is in flight. Call
@@ -73,6 +75,8 @@ Use this base delegation:
 Read <absolute-template-path> completely and follow it as your workflow template.
 Task ID: <ID>
 Stage: <stage>
+Assigned worktree: <absolute-worktree-path>
+Bounded stage input: <durable Git identities and accepted or rejected evidence>
 ```
 
 The subagent gets repository context from `AGENTS.md`, the task list, and Git.
@@ -83,14 +87,15 @@ The orchestrator does not perform the delegated role.
 Maintain one row per active task:
 
 ```text
-Task | Developer | Reviewer | Stage | Outstanding work | Accepted evidence
+Task | Stage | Active delegation agent | Outstanding work | Accepted evidence | Agent history
 ```
 
-The ledger is the authoritative record of current assignments and accepted
-runtime state; `STATE_MACHINE.md` defines the transition rules. Before spawning,
-consult both the ledger and `hub` agent/job snapshots. An assigned idle or
-parked agent receives a `hub` `send`; an unavailable assigned agent is replaced
-once and the ledger is updated.
+The ledger is the authoritative record of current runtime state.
+`STATE_MACHINE.md` defines the transition rules. Record every spawned agent in
+the history with its bounded stage, and keep only the current delegation's agent
+in the active field. Before spawning, consult the ledger and `hub` agent/job
+snapshots for capacity and duplicate outstanding work; never select a historical
+agent for new work.
 
 ## Rules
 
@@ -154,7 +159,8 @@ terminal.
 
 ### 4. Prepare
 
-The assigned developer implements and commits the task on its task branch.
+The fresh preparation developer implements and commits the task on its task
+branch.
 Accept preparation only when the developer satisfies every completion criterion
 in `PREPARATION.md` with direct evidence and the task worktree is clean.
 
@@ -163,35 +169,41 @@ commit and push the task-list change on the phase branch.
 
 ### 5. Task review
 
-The assigned reviewer reviews the prepared task using `REVIEW.md`.
+Spawn a fresh reviewer to review the prepared task using `REVIEW.md`.
 
 Accept `PASSED` only with the required checklist, complete inventory,
 verification evidence, and successful evidence validation. On `REJECTED`, keep
-the task `PREPARED`; send the complete findings to the same developer, then send
-the repair result back to the same reviewer.
+the task `PREPARED`; spawn a fresh developer with the complete findings. After
+accepting the repair result, spawn another fresh reviewer for a complete task
+review.
 
-Task review is complete only when that reviewer returns an evidence-backed
-`PASSED`.
+Task review is complete only when the current review cycle returns an
+evidence-backed `PASSED`.
 
 ### 6. Integrate and review
 
-Integrate one approved task at a time. Delegate integration to the same
-developer using `INTEGRATION.md`. The developer creates a temporary integration
-branch from the remote phase branch, merges the approved task branch, resolves
-any conflicts, and runs the integration checks without publishing.
+Integrate one approved task at a time. Spawn a fresh developer using
+`INTEGRATION.md`. The developer creates a temporary integration branch from the
+remote phase branch, merges the approved task branch, resolves any conflicts,
+and runs the integration checks without publishing.
 
-Delegate review of the complete integrated result to the same reviewer. On
-rejection, the same developer repairs the temporary integration branch and the
-same reviewer repeats the full integration review.
+Only an integrated result with passing checks proceeds to review. If integration
+or repair checks fail, spawn a fresh developer for an integration-repair
+delegation with the branch, commit, failed commands, and complete output. Each
+failed repair attempt produces another fresh repair agent.
+
+After checks pass, spawn a fresh reviewer for the complete integrated result. On
+rejection, spawn a fresh developer to repair the temporary integration branch,
+then spawn another fresh reviewer for a complete integration review.
 
 Integration is complete only when the reviewer returns an evidence-backed
 `PASSED` for the current temporary integration branch.
 
 ### 7. Publish and complete
 
-After integration review passes, delegate publication to the same developer. The
-developer pushes the reviewed temporary integration branch to the remote phase
-branch with a normal fast-forward push.
+After integration review passes, spawn a fresh developer for publication. The
+developer pushes the exact reviewed temporary integration branch to the remote
+phase branch with a normal fast-forward push.
 
 Then the orchestrator:
 

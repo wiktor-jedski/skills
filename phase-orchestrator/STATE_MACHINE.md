@@ -8,9 +8,9 @@ completely before bootstrap and immediately after every `hub` wait return.
 Take a fresh snapshot of all six inputs before deciding what to do:
 
 1. Persisted task-table rows and dependency statuses.
-2. Run ledger: assigned agents, task stages, outstanding delegations, and
-   accepted evidence.
-3. `hub` `list` and `jobs` snapshots: assigned-agent availability and newly
+2. Run ledger: task stages, active delegation agents, agent history, outstanding
+   delegations, and accepted evidence.
+3. `hub` `list` and `jobs` snapshots: active-agent availability and newly
    returned results.
 4. The event that ended the wait: agent result, question, blocker, timeout, or
    user interruption.
@@ -28,8 +28,8 @@ stateDiagram-v2
     [*] --> Snapshot
     Snapshot --> ClassifyEvent
     ClassifyEvent --> ApplyTransitions
-    ApplyTransitions --> DispatchContinuations
-    DispatchContinuations --> StartOneIntegration
+    ApplyTransitions --> DispatchFreshDelegations
+    DispatchFreshDelegations --> StartOneIntegration
     StartOneIntegration --> FillReadyFrontier
     FillReadyFrontier --> TerminalCheck
     TerminalCheck --> Wait: work remains in flight
@@ -49,8 +49,8 @@ handles the complete current mailbox rather than only its first message.
 
 ### Classify event
 
-- Agent result: associate it with exactly one task, assigned agent, and
-  outstanding stage.
+- Agent result: associate it with exactly one task, active delegation agent, and
+  outstanding bounded stage.
 - Agent question or blocker: answer only the orchestration decision it requires;
   preserve the task stage.
 - Wait timeout: preserve every state and proceed through the rest of the cycle.
@@ -64,10 +64,13 @@ Accept a claimed result only when the stage's completion criterion and durable
 evidence agree. Apply every accepted transition in integer task-ID order. Record
 rejected evidence without advancing the task.
 
-### Dispatch continuations
+### Dispatch fresh delegations
 
-Send every repair, review, publication, or requested-evidence continuation made
-ready by the accepted transitions. Use the assigned agent from the ledger.
+Spawn a new agent for every preparation, repair, review cycle, integration, or
+publication made ready by accepted transitions. Never dispatch new bounded work
+to an agent already present in the ledger history. Use the active agent only for
+a question, blocker, or missing-evidence exchange within its original
+delegation.
 
 ### Start one integration
 
@@ -108,8 +111,10 @@ stateDiagram-v2
 
     QUEUED_INTEGRATION --> INTEGRATING: integration slot acquired
     INTEGRATING --> INTEGRATING: evidence incomplete / question / blocker
+    INTEGRATING --> INTEGRATION_REPAIR: integration checks failed
     INTEGRATING --> INTEGRATION_REVIEW: integration branch and checks ready
     INTEGRATION_REVIEW --> INTEGRATION_REPAIR: reviewer REJECTED
+    INTEGRATION_REPAIR --> INTEGRATION_REPAIR: repair checks failed; fresh developer dispatched
     INTEGRATION_REPAIR --> INTEGRATION_REVIEW: developer repair committed and checked
     INTEGRATION_REVIEW --> PUBLISHING: reviewer PASSED
 
@@ -122,41 +127,45 @@ stateDiagram-v2
 
 <!-- markdownlint-disable MD013 -->
 
-| Current state        | Required input                                  | Action                                        | Next state           | Completion criterion                                     |
-| -------------------- | ----------------------------------------------- | --------------------------------------------- | -------------------- | -------------------------------------------------------- |
-| `BLOCKED`            | Every dependency is persisted as `PASSED`       | Add to ready frontier                         | `READY`              | No dependency is `OPEN`, `PREPARED`, or merely in flight |
-| `READY`              | Developer capacity and clean detached worktree  | Delegate preparation                          | `PREPARING`          | Ledger records the developer and outstanding delegation  |
-| `PREPARING`          | Preparation evidence satisfies `PREPARATION.md` | Persist `PREPARED`; delegate review           | `TASK_REVIEW`        | Status commit and push succeed                           |
-| `PREPARING`          | Missing evidence, question, or blocker          | Request bounded evidence or answer            | `PREPARING`          | Original delegation remains owned by the same developer  |
-| `TASK_REVIEW`        | Reviewer returns `REJECTED` with findings       | Delegate findings to developer                | `TASK_REPAIR`        | Repair delegation names the rejected evidence            |
-| `TASK_REPAIR`        | Repair commit and verification evidence         | Delegate full task review                     | `TASK_REVIEW`        | Same reviewer receives the complete repaired boundary    |
-| `TASK_REVIEW`        | Reviewer returns evidence-backed `PASSED`       | Enqueue by integer ID                         | `QUEUED_INTEGRATION` | Review checklist and validator pass                      |
-| `QUEUED_INTEGRATION` | No other integration/publication active         | Delegate integration                          | `INTEGRATING`        | Same developer owns the integration delegation           |
-| `INTEGRATING`        | Complete integration branch and checks          | Delegate full integration review              | `INTEGRATION_REVIEW` | Branch remains unpublished and commit is recorded        |
-| `INTEGRATION_REVIEW` | Reviewer returns `REJECTED` with findings       | Delegate integration repair                   | `INTEGRATION_REPAIR` | Repair delegation names the reviewed commit and findings |
-| `INTEGRATION_REPAIR` | Repair commit and integration checks            | Delegate full integration review              | `INTEGRATION_REVIEW` | Same reviewer receives the new integrated commit         |
-| `INTEGRATION_REVIEW` | Reviewer returns evidence-backed `PASSED`       | Delegate publication of exact reviewed commit | `PUBLISHING`         | Reviewed commit identity is recorded in the ledger       |
-| `PUBLISHING`         | Fast-forward push succeeds                      | Pull; persist `PASSED`; push status; clean up | `COMPLETE`           | Remote merge and status commits exist; cleanup succeeds  |
+| Current state        | Required input                                  | Action                                             | Next state           | Completion criterion                                     |
+| -------------------- | ----------------------------------------------- | -------------------------------------------------- | -------------------- | -------------------------------------------------------- |
+| `BLOCKED`            | Every dependency is persisted as `PASSED`       | Add to ready frontier                              | `READY`              | No dependency is `OPEN`, `PREPARED`, or merely in flight |
+| `READY`              | Developer capacity and clean detached worktree  | Spawn fresh developer for preparation              | `PREPARING`          | Ledger records active agent and stage in agent history    |
+| `PREPARING`          | Preparation evidence satisfies `PREPARATION.md` | Persist `PREPARED`; spawn fresh reviewer            | `TASK_REVIEW`        | Status commit and push succeed                           |
+| `PREPARING`          | Missing evidence, question, or blocker          | Ask or answer within active delegation              | `PREPARING`          | Original bounded delegation remains active               |
+| `TASK_REVIEW`        | Reviewer returns `REJECTED` with findings       | Spawn fresh developer for task repair               | `TASK_REPAIR`        | Repair delegation names the rejected evidence            |
+| `TASK_REPAIR`        | Repair commit and verification evidence         | Spawn fresh reviewer for full task review           | `TASK_REVIEW`        | Reviewer receives the complete repaired boundary         |
+| `TASK_REVIEW`        | Reviewer returns evidence-backed `PASSED`       | Enqueue by integer ID                               | `QUEUED_INTEGRATION` | Review checklist and validator pass                      |
+| `QUEUED_INTEGRATION` | No other integration/publication active         | Spawn fresh developer for integration               | `INTEGRATING`        | Agent history records the integration delegation         |
+| `INTEGRATING`        | Complete integration branch and checks          | Spawn fresh reviewer for full integration review    | `INTEGRATION_REVIEW` | Branch remains unpublished and commit is recorded        |
+| `INTEGRATING`        | Integration checks fail with complete evidence  | Spawn fresh developer for integration repair        | `INTEGRATION_REPAIR` | Repair delegation names branch, commit, and failed checks |
+| `INTEGRATION_REVIEW` | Reviewer returns `REJECTED` with findings       | Spawn fresh developer for integration repair        | `INTEGRATION_REPAIR` | Repair delegation names the reviewed commit and findings |
+| `INTEGRATION_REPAIR` | Repair checks fail with complete evidence       | Spawn fresh developer for another repair            | `INTEGRATION_REPAIR` | New delegation names branch, commit, and failed checks    |
+| `INTEGRATION_REPAIR` | Repair commit and integration checks            | Spawn fresh reviewer for full integration review    | `INTEGRATION_REVIEW` | Reviewer receives the new integrated commit              |
+| `INTEGRATION_REVIEW` | Reviewer returns evidence-backed `PASSED`       | Spawn fresh developer to publish reviewed commit    | `PUBLISHING`         | Reviewed commit identity is recorded in the ledger       |
+| `PUBLISHING`         | Fast-forward push succeeds                      | Pull; persist `PASSED`; push status; clean up       | `COMPLETE`           | Remote merge and status commits exist; cleanup succeeds  |
 
 <!-- markdownlint-enable MD013 -->
 
 Any input that does not satisfy its row leaves the task in its current state.
-Request only the missing bounded evidence from the assigned agent.
+Request only missing bounded evidence from the active agent while its original
+delegation remains active.
 
 ## Agent assignment decision
 
-For every delegation:
+For every bounded stage delegation:
 
-```text
-assigned agent exists in ledger?
-  yes -> agent is idle or parked in hub list?
-           yes -> hub send to assigned agent
-           no  -> task spawn one replacement with the same agent type; update ledger
-  no  -> task spawn once with the required agent type; record in ledger
-```
+1. Confirm the prior delegation is settled and the task has no outstanding
+   delegation.
+2. Spawn a new agent with `task` and the required agent type.
+3. Record its unique agent ID, task, role, and stage in the ledger history.
+4. Set it as the active delegation agent until its result is accepted or
+   rejected.
 
-An idle or parked assigned agent is reusable. A new command or stage is not a
-reason to create a new agent.
+Never use `hub` `send` to start another stage, repair attempt, or review cycle.
+An idle or parked historical agent is not reusable. `hub` `send` is reserved
+for questions, blockers, and missing bounded evidence within the agent's
+original active delegation.
 
 ## Safety invariants
 
@@ -164,7 +173,8 @@ reason to create a new agent.
 - At most one task is in `INTEGRATING`, `INTEGRATION_REVIEW`,
   `INTEGRATION_REPAIR`, or `PUBLISHING`.
 - Each task has at most one outstanding delegation.
-- Each accepted result comes from the agent assigned to that task and role, or
-  its recorded replacement.
+- Each accepted result comes from the active agent for that exact bounded stage.
+- No agent ID is assigned to more than one bounded stage delegation during the
+  run.
 - The reviewed integration commit is the commit published.
 - `COMPLETE` implies every prior gate has accepted evidence.
