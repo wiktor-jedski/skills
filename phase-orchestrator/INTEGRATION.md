@@ -55,6 +55,7 @@ For a publication delegation, identify the exact temporary integration commit
 approved by the latest reviewer. Confirm that the branch has not changed since
 that approval. Push it to the remote phase branch with a normal fast-forward
 push. Do not force-push.
+If the reviewed superproject commit changes a submodule gitlink, push the referenced submodule commit to that submodule's remote before pushing the superproject branch. Then run `git submodule update --init --recursive` in a fresh temporary clone of the published phase branch. If it fails, leave the task `PREPARED` and do not remove its worktree or branches.
 
 Return:
 
