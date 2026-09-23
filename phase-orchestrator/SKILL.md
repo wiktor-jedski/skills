@@ -12,13 +12,19 @@ worktrees.
 ## Inputs
 
 Use the task list specified by the applicable `AGENTS.md`. Use another task list
-only when the user specifies it.
+only when the user specifies it. The task-details directory is `tasks/` beside
+the task list.
 
 The table must contain:
 
-`ID | Status | Description | Depends On (ID) | Verification Criteria`
+`ID | Architecture Component | Status | Depends On (ID)`
 
-Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
+`Architecture Component` must contain at least one architecture component
+identifier. Valid statuses are `OPEN`, `PREPARED`, and `PASSED`.
+
+Each task must have `tasks/{ID}.md` with `Description` and
+`Acceptance Criteria` sections. The task file is the source of implementation
+scope, design references, commands, and observable pass conditions.
 
 ## Hard truths
 
@@ -74,13 +80,14 @@ Use this base delegation:
 ```text
 Read <absolute-template-path> completely and follow it as your workflow template.
 Task ID: <ID>
+Task file: <absolute-task-details-directory>/<ID>.md
 Stage: <stage>
 Assigned worktree: <absolute-worktree-path>
 Bounded stage input: <durable Git identities and accepted or rejected evidence>
 ```
 
-The subagent gets repository context from `AGENTS.md`, the task list, and Git.
-The orchestrator does not perform the delegated role.
+The subagent gets repository context from `AGENTS.md`, the task list, the task
+file, and Git. The orchestrator does not perform the delegated role.
 
 ## Run ledger
 
@@ -121,12 +128,13 @@ agent for new work.
 Parse task IDs as integers. Treat `-` and an empty dependency cell as no
 dependencies.
 
-Stop if an ID is not unique, a dependency is missing, a status is invalid, the
+Stop if an ID is not unique, an architecture component is missing, a dependency
+is missing, a status is invalid, a task file is missing or malformed, the
 repository is not clean, or required role/template files cannot be read.
 
-Create the run ledger. An `OPEN` task is eligible only when all its dependencies
-are `PASSED`. A `PREPARED` task resumes at task review unless the ledger or
-durable Git evidence proves a later stage.
+Create the run ledger for every task-list row. An `OPEN` task is eligible only
+when all its dependencies are `PASSED`. A `PREPARED` task resumes at task review
+unless the ledger or durable Git evidence proves a later stage.
 
 Bootstrap is complete when every task has a valid state and every immediately
 eligible task is identified.
@@ -172,10 +180,10 @@ commit and push the task-list change on the phase branch.
 Spawn a fresh reviewer to review the prepared task using `REVIEW.md`.
 
 Accept `PASSED` only with the required checklist, complete inventory,
-verification evidence, and successful evidence validation. On `REJECTED`, keep
-the task `PREPARED`; spawn a fresh developer with the complete findings. After
-accepting the repair result, spawn another fresh reviewer for a complete task
-review.
+acceptance-criteria evidence, and successful evidence validation. On `REJECTED`,
+keep the task `PREPARED`; spawn a fresh developer with the complete findings.
+After accepting the repair result, spawn another fresh reviewer for a complete
+task review.
 
 Task review is complete only when the current review cycle returns an
 evidence-backed `PASSED`.

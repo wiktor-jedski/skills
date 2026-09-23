@@ -13,9 +13,11 @@ Before either stage:
 
 1. Read the applicable `AGENTS.md` files.
 2. Find the task list specified by `AGENTS.md`.
-3. Find the row with the given task ID.
+3. Find the row with the given task ID and read its architecture components.
 4. Read its dependency rows.
-5. Read the design and requirement sources specified by the row or `AGENTS.md`.
+5. Read `tasks/<ID>.md` beside the task list.
+6. Read the design and requirement sources specified by that task file or
+   `AGENTS.md`.
 
 For preparation, confirm that the worktree is detached at the phase-branch
 commit, then create a unique task branch that contains the task ID.
@@ -27,7 +29,7 @@ not create, rebase, or replace the task branch.
 ## Prepare
 
 - Implement only the selected task.
-- Do not edit the task list.
+- Do not edit the task list or task file.
 - Preserve unrelated changes.
 - Inspect the repository before you edit code.
 - Run each supported verification command.
@@ -40,14 +42,14 @@ Return:
 - Commit list.
 - Changed files and executable symbols.
 - Commands and results.
-- The result for each verification criterion.
+- The result for each acceptance criterion.
 - Risks and blockers.
 
 Preparation passes only when:
 
 - All task changes are committed.
 - The task worktree is clean.
-- Each verification criterion has direct evidence.
+- Each acceptance criterion has direct evidence.
 - The report identifies all changed files and executable symbols.
 
 ## Repair

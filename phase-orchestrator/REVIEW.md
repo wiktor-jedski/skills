@@ -8,18 +8,18 @@ and any prior repair evidence. Do not rely on context from an earlier reviewer;
 reconstruct the complete current boundary from the repository, Git, and supplied
 evidence.
 
-Do not edit implementation code or the task list.
+Do not edit implementation code, the task list, or the task file.
 
 Before review:
 
 1. Find the task list specified by `AGENTS.md`.
-2. Find the row with the given task ID.
+2. Find the row with the given task ID and read its architecture components.
 3. Read its dependency rows.
-4. Inspect Git to identify the phase branch, task branch, and review boundary.
+4. Read `tasks/<ID>.md` beside the task list.
+5. Inspect Git to identify the phase branch, task branch, and review boundary.
 
 For a task review, compare the task branch with its merge base on the phase
 branch.
-
 For an integration review, compare the temporary integration branch with the
 remote phase branch. Review the full integrated task diff, including conflict
 resolutions and integration repairs.
@@ -37,7 +37,7 @@ the `reviews` directory if necessary.
 2. Invoke `code-review-skill` exactly once for this review cycle.
 3. Read its relevant language guide.
 4. Reconstruct the complete task diff.
-5. Create one checklist item for each verification clause.
+5. Create one checklist item for each acceptance-criteria clause.
 6. Inventory every added or modified executable symbol.
 7. Inspect every item and its important callers, dependencies, tests, and design
    sources.
@@ -69,7 +69,7 @@ Use the severity terms from `code-review-skill`.
 Return `PASSED` only when:
 
 - All pre-review gates pass.
-- Every verification criterion passes.
+- Every acceptance criterion passes.
 - The symbol inventory is complete.
 - Every inventory item has an audit row.
 - No blocking or important finding remains.

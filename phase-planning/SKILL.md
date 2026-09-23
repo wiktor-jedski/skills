@@ -1,12 +1,13 @@
 ---
 name: phase-planning
-description: Plan implementation phases as actionable, traceable task lists.
+description: Plan implementation phases with a task ledger and per-task description and acceptance-criteria files.
 disable-model-invocation: true
 ---
 
 # Phase Planning
 
-Create or refine tasks for one named implementation phase.
+Create or refine tasks for one named implementation phase. Keep scheduling
+bookkeeping in the task list and implementation detail in one file per task.
 
 ## Inputs
 
@@ -18,19 +19,32 @@ Read the applicable `AGENTS.md` files. Get these items from them:
 - Task list.
 - Open-items document.
 - Design and architecture sources.
-- Validation command.
+- Validation command that reads the task list plus `tasks/{ID}.md` files.
 
-Stop and report each missing item. Do not guess a path or command.
+Stop and report each missing item. Do not guess a path or command. Treat a
+validator that requires descriptions or verification criteria in the task-list
+table as incompatible and report it as a blocker before editing.
 
-Edit only the task list and open-items document unless the user expands the scope.
+The task-details directory is `tasks/` beside the task list. For example, a
+task list at `docs/implementation/task-list.md` uses
+`docs/implementation/tasks/`. Create this directory when it does not exist.
 
-## Task table
+Edit only the task list, task files created or explicitly selected for
+refinement, and open-items document unless the user expands the scope.
+
+## Task list
 
 The task table must have at least these columns:
 
-`ID | Status | Description | Depends On (ID) | Verification Criteria`
+`ID | Architecture Component | Status | Depends On (ID)`
 
-Keep all extra columns and the table format. Follow extra-column rules from `AGENTS.md` or the existing table.
+`Architecture Component` contains the identifiers of the architecture
+components implemented or changed by the task. Use comma-separated identifiers
+when a task spans multiple components. Do not add or infer phase membership in
+the task list.
+
+Keep all other bookkeeping columns and the existing table format. Follow
+extra-column rules from `AGENTS.md` or the existing table.
 
 Use only these statuses:
 
@@ -38,39 +52,65 @@ Use only these statuses:
 - `PREPARED`
 - `PASSED`
 
-Use growing, unique integer IDs. Use comma-separated task IDs for dependencies. Use an empty cell when a task has no dependency.
+Use growing, unique integer IDs. Use comma-separated task IDs for dependencies.
+Use an empty cell when a task has no dependency.
+
+The task list is a ledger. Do not put descriptions, acceptance criteria,
+commands, or other implementation detail in it.
+
+## Task files
+
+Store each task's detail in `tasks/{ID}.md`, where `{ID}` exactly matches the
+integer in the task list. Use this format:
+
+```md
+# Task {ID}
+
+## Description
+
+<Concrete implementation result and relevant design or architecture references.>
+
+## Acceptance Criteria
+
+- <Observable pass or fail outcome, including the relevant test or command.>
+```
+
+Do not repeat status, dependencies, or other task-list bookkeeping in a task
+file.
 
 ## Plan the phase
 
 1. Read the named phase in the phase plan.
 2. Extract every exit criterion.
-3. Read the existing tasks for the phase.
+3. Read the existing task-list rows and their task files.
 4. Read each design and architecture source named by the phase.
 5. Create small implementation slices in dependency order.
 6. Map every exit criterion to one or more tasks.
 
 Each task must be implementable and verifiable after its dependencies pass.
-
-Put tests close to the behavior that they verify. Do not create one final test-cleanup task.
+Put tests close to the behavior that they verify. Do not create one final
+test-cleanup task.
 
 ## Write tasks
 
-For new tasks:
+For each new task:
 
-- Set `Status` to `OPEN`.
-- Use the next available ID.
-- State one concrete implementation result.
-- Put all relevant design and architecture references in `Description`.
-- Put observable pass or fail evidence in `Verification Criteria`.
-- Name the relevant tests and commands in `Verification Criteria`.
-- Add explicit dependencies. Keep the dependency graph acyclic.
+- Add one task-list row with the relevant `Architecture Component` identifiers,
+  `Status` set to `OPEN`, the next available ID, and explicit acyclic
+  dependencies.
+- Create `tasks/{ID}.md`.
+- State one concrete implementation result in `Description`.
+- Include all relevant design and architecture references in `Description`.
+- Put observable pass or fail evidence in `Acceptance Criteria`.
+- Name the relevant tests and commands in `Acceptance Criteria`.
 
 For existing tasks:
 
-- Preserve every ID and status.
-- Edit only `OPEN` tasks in the target phase.
-- Keep `PREPARED` and `PASSED` tasks unchanged.
-- Keep tasks from other phases unchanged.
+- Preserve every existing ID, architecture component, and status.
+- Edit an existing task file only when its status is `OPEN` and the user
+  explicitly selected that task ID for refinement.
+- Keep `PREPARED` and `PASSED` rows and task files unchanged.
+- Otherwise, keep existing rows and task files unchanged.
 
 Do not repeat the phase name in each description.
 
@@ -90,22 +130,28 @@ Use a section for the target phase. Add only headings that contain entries:
 - `Actions needed`
 - `Testing coverage deviations`
 
-Keep each item concrete and tied to implementation risk. Use the source document as the single source for existing facts.
+Keep each item concrete and tied to implementation risk. Use the source
+document as the single source for existing facts.
 
 ## Validate
 
-Run the validation command from `AGENTS.md`.
+Run the validation command from `AGENTS.md`. It must validate the ledger-only
+task-list schema and read `tasks/{ID}.md` for task details.
 
 Planning passes only when:
 
 - Every exit criterion maps to at least one task.
+- Every task-list row has exactly one `tasks/{ID}.md` file.
+- Every task file has `Description` and `Acceptance Criteria`.
 - Every task has valid, acyclic dependencies.
 - Every referenced source exists.
-- Every task has observable verification evidence.
+- Every task has observable acceptance evidence.
 - Every missing design fact is an open item.
 - The validation command passes.
 
-If a check fails, fix the planning files and run the command again. Report a blocker when the command cannot run.
+If a planning check fails, fix the planning files and run the command again. If
+the command cannot run or still requires detail columns in the task list,
+report the validator as a blocker; do not restore details to the ledger.
 
 ## Report
 

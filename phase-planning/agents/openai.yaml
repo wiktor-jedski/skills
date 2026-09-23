@@ -1,4 +1,4 @@
 interface:
   display_name: "Phase Planning"
-  short_description: "Plan actionable, traceable implementation phases."
-  default_prompt: "Plan the named implementation phase as an actionable task list."
+  short_description: "Plan phases with a task ledger and per-task specs."
+  default_prompt: "Plan the named implementation phase using a task ledger and one detail file per task."
